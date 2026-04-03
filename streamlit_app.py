@@ -4,7 +4,7 @@ import requests
 st.set_page_config(page_title="Credit Risk Scorer", layout="wide")
 
 # =============================
-# 🎨 STYLES (UNCHANGED)
+# 🎨 STYLES
 # =============================
 st.markdown("""
 <style>
@@ -31,21 +31,13 @@ st.markdown("""
 
 .score-card   { background: linear-gradient(135deg, #667eea, #764ba2); }
 .prob-card    { background: linear-gradient(135deg, #f093fb, #f5576c); }
-tier-card    { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.tier-card    { background: linear-gradient(135deg, #4facfe, #00f2fe); }
 .approve-card { background: linear-gradient(135deg, #43e97b, #38f9d7); }
 .review-card  { background: linear-gradient(135deg, #f7971e, #ffd200); }
 .reject-card  { background: linear-gradient(135deg, #fa709a, #fee140); }
 
 .metric-value { font-size: 2.2rem; font-weight: 800; }
 .metric-label { font-size: 0.95rem; font-weight: 600; }
-
-.sidebar-metric {
-    background: #111827;
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-    color: white;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,27 +112,34 @@ if submit:
     try:
         r = requests.post("http://127.0.0.1:8000/score", json=payload).json()
 
-        # ✅ FIXED KEY MAPPING
-        score = r.get("credit_score")
-        prob = r.get("default_probability")
+        # ✅ handle BOTH API formats (important!)
+        if "credit_score" in r:
+            score = r.get("credit_score")
+            prob = r.get("default_probability")
+            risk_tier = r.get("risk_tier")
 
-        decision_map = {
-            1: "APPROVE",
-            0: "REVIEW",
-            -1: "REJECT"
-        }
-        decision = decision_map.get(r.get("decision"), "UNKNOWN")
+            decision_map = {
+                1: "APPROVE",
+                0: "REVIEW",
+                -1: "REJECT"
+            }
+            decision = decision_map.get(r.get("decision"), "UNKNOWN")
 
-        risk_tier = r.get("risk_tier", "N/A")
+        else:
+            score = r.get("score")
+            prob = r.get("probability_of_default")
+            decision = r.get("decision")
+            risk_tier = "N/A"
 
-        # ❌ safety check
+        drivers = r.get("risk_drivers", [])
+
         if score is None or prob is None:
             st.error("⚠️ API response missing expected keys")
             st.write(r)
             st.stop()
 
         # =============================
-        # RESULTS UI
+        # RESULTS
         # =============================
         st.markdown("---")
         st.markdown("## Results")
@@ -175,6 +174,21 @@ if submit:
             <div class="metric-value">{decision}</div>
         </div>
         """, unsafe_allow_html=True)
+
+        # =============================
+        # SHAP / EXPLANATION
+        # =============================
+        st.markdown("### 🔍 Why this decision?")
+
+        if drivers:
+            for d in drivers:
+                color = "green" if d.get("impact", 0) < 0 else "red"
+                st.markdown(
+                    f"<span style='color:{color}'><b>{d.get('feature')}</b> → {d.get('impact', 0):+.4f}</span>",
+                    unsafe_allow_html=True
+                )
+        else:
+            st.warning("No explanation available")
 
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
