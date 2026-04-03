@@ -33,6 +33,19 @@ def get_decision(score):
     else:
         return "REJECT"
 
+# ✅ Risk Tier logic
+def get_risk_tier(score):
+    if score >= 700:
+        return "A"
+    elif score >= 650:
+        return "B"
+    elif score >= 600:
+        return "C"
+    elif score >= 550:
+        return "D"
+    else:
+        return "E"
+
 # ==============================
 # LOAD MODEL
 # ==============================
@@ -53,7 +66,6 @@ try:
 
     explainer = shap.TreeExplainer(XGB_CORE)
 
-    # ✅ NEW: Load metrics
     METRICS = artifact.get("metrics", {})
 
     logger.info("Model + metrics loaded successfully")
@@ -106,11 +118,12 @@ async def score(data: CreditInput):
         # ── Ensemble ──
         prob = (0.4 * p_log) + (0.6 * p_xgb)
 
-        # ── Score ──
+        # ── Score + Decision ──
         score = prob_to_score(prob)
         decision = get_decision(score)
+        risk_tier = get_risk_tier(score)
 
-        # ── SHAP ──
+        # ── SHAP Explanation ──
         drivers = []
         try:
             shap_values = explainer.shap_values(X)
@@ -145,8 +158,9 @@ async def score(data: CreditInput):
             "score": int(score),
             "probability_of_default": round(float(prob), 4),
             "decision": decision,
+            "risk_tier": risk_tier,   # ✅ FIXED
             "risk_drivers": drivers,
-            "model_metrics": METRICS   # ✅ NEW
+            "model_metrics": METRICS
         }
 
     except Exception as e:

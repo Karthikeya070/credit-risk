@@ -1,92 +1,47 @@
 import streamlit as st
 import requests
 
+# Page Config
 st.set_page_config(page_title="Credit Risk Scorer", layout="wide")
+st.title("💳 Credit Risk Scorer")
 
-# =============================
-# 🎨 STYLES
-# =============================
-st.markdown("""
-<style>
-.block-container { padding: 2rem 3rem; max-width: 1100px; }
-
-.header-box {
-    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
-    border-radius: 16px;
-    padding: 2rem;
-    color: white;
-    margin-bottom: 1.5rem;
-}
-
-.card {
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-align: center;
-    color: white;
-    height: 120px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.score-card   { background: linear-gradient(135deg, #667eea, #764ba2); }
-.prob-card    { background: linear-gradient(135deg, #f093fb, #f5576c); }
-.tier-card    { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-.approve-card { background: linear-gradient(135deg, #43e97b, #38f9d7); }
-.review-card  { background: linear-gradient(135deg, #f7971e, #ffd200); }
-.reject-card  { background: linear-gradient(135deg, #fa709a, #fee140); }
-
-.metric-value { font-size: 2.2rem; font-weight: 800; }
-.metric-label { font-size: 0.95rem; font-weight: 600; }
-</style>
-""", unsafe_allow_html=True)
-
-# =============================
-# HEADER
-# =============================
-st.markdown("""
-<div class="header-box">
-<h1>💳 Credit Risk Scorer</h1>
-<p>AI-powered credit assessment using ensemble ML model</p>
-</div>
-""", unsafe_allow_html=True)
-
-# =============================
-# INPUTS
-# =============================
-col1, col2, col3, col4 = st.columns(4)
+# ==============================
+# INPUT FORM
+# ==============================
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    loan_amnt = st.number_input("Loan Amount", 500.0, 40000.0, 10000.0)
-    int_rate = st.number_input("Interest Rate", 5.0, 30.0, 12.5)
+    loan_amnt = st.number_input("Loan Amount", value=10000)
+    int_rate = st.number_input("Interest Rate (%)", value=12.5)
     term = st.selectbox("Term", ["36 months", "60 months"])
-    installment = st.number_input("Installment", 0.0, 2000.0, 332.0)
-    purpose = st.selectbox("Purpose", ["debt_consolidation","credit_card","home_improvement"])
+    installment = st.number_input("Installment", value=332.0)
+    grade = st.selectbox("Grade", ["A","B","C","D","E","F","G"])
+    sub_grade = st.selectbox("Sub Grade", ["A1","A2","A3","A4","A5"])
 
 with col2:
-    annual_inc = st.number_input("Annual Income", 0.0, 500000.0, 60000.0)
-    emp_length = st.selectbox("Employment Length", ["10+ years","5 years","2 years"])
-    home_ownership = st.selectbox("Home Ownership", ["RENT","OWN"])
-    grade = st.selectbox("Grade", list("ABCDEFG"))
-    sub_grade = st.selectbox("Sub Grade", [f"A{i}" for i in range(1,6)])
+    emp_length = st.selectbox("Employment Length",
+        ["< 1 year","1 year","2 years","3 years","4 years",
+         "5 years","6 years","7 years","8 years","9 years","10+ years"])
+    home_ownership = st.selectbox("Home Ownership", ["RENT","OWN","MORTGAGE"])
+    annual_inc = st.number_input("Annual Income ($)", value=60000)
+    verification_status = st.selectbox("Verification Status",
+        ["Verified","Not Verified","Source Verified"])
+    purpose = st.selectbox("Purpose",
+        ["debt_consolidation","credit_card","home_improvement","major_purchase"])
 
 with col3:
-    dti = st.number_input("DTI", 0.0, 100.0, 15.0)
-    revol_util = st.number_input("Utilization", 0.0, 100.0, 30.0)
-    open_acc = st.number_input("Open Accounts", 0, 50, 5)
-    total_acc = st.number_input("Total Accounts", 0, 50, 10)
+    dti = st.number_input("DTI (%)", value=15.0)
+    delinq_2yrs = st.number_input("Delinquencies (2 yrs)", value=0)
+    inq_last_6mths = st.number_input("Inquiries (6 mths)", value=1)
+    open_acc = st.number_input("Open Accounts", value=5)
+    pub_rec = st.number_input("Public Records", value=0)
+    revol_util = st.number_input("Revolving Utilization (%)", value=30.0)
+    total_acc = st.number_input("Total Accounts", value=10)
 
-with col4:
-    delinq_2yrs = st.number_input("Delinquencies", 0, 10, 0)
-    inq_last_6mths = st.number_input("Inquiries", 0, 10, 1)
-    pub_rec = st.number_input("Public Records", 0, 10, 0)
-    st.markdown("<br>", unsafe_allow_html=True)
-    submit = st.button("🚀 Score Applicant", use_container_width=True)
-
-# =============================
-# API CALL
-# =============================
-if submit:
+# ==============================
+# BUTTON & LOGIC
+# ==============================
+if st.button("🚀 Score Applicant", use_container_width=True):
 
     payload = {
         "loan_amnt": loan_amnt,
@@ -98,97 +53,70 @@ if submit:
         "emp_length": emp_length,
         "home_ownership": home_ownership,
         "annual_inc": annual_inc,
-        "verification_status": "Verified",
+        "verification_status": verification_status,
         "purpose": purpose,
         "dti": dti,
-        "delinq_2yrs": int(delinq_2yrs),
-        "inq_last_6mths": int(inq_last_6mths),
-        "open_acc": int(open_acc),
-        "pub_rec": int(pub_rec),
+        "delinq_2yrs": delinq_2yrs,
+        "inq_last_6mths": inq_last_6mths,
+        "open_acc": open_acc,
+        "pub_rec": pub_rec,
         "revol_util": revol_util,
-        "total_acc": int(total_acc),
+        "total_acc": total_acc
     }
 
     try:
-        r = requests.post("http://127.0.0.1:8000/score", json=payload).json()
+        # Requesting the backend
+        response = requests.post("http://127.0.0.1:9000/score", json=payload)
+        response.raise_for_status() # Check for HTTP errors
+        r = response.json()
 
-        # ✅ handle BOTH API formats (important!)
-        if "credit_score" in r:
-            score = r.get("credit_score")
-            prob = r.get("default_probability")
-            risk_tier = r.get("risk_tier")
-
-            decision_map = {
-                1: "APPROVE",
-                0: "REVIEW",
-                -1: "REJECT"
-            }
-            decision = decision_map.get(r.get("decision"), "UNKNOWN")
-
-        else:
-            score = r.get("score")
-            prob = r.get("probability_of_default")
-            decision = r.get("decision")
-            risk_tier = "N/A"
-
+        # ==============================
+        # EXTRACT VALUES
+        # ==============================
+        score = r.get("score", "N/A")
+        prob = r.get("probability_of_default", 0)
+        decision = r.get("decision", "N/A")
+        risk_tier = r.get("risk_tier", "N/A")
         drivers = r.get("risk_drivers", [])
 
-        if score is None or prob is None:
-            st.error("⚠️ API response missing expected keys")
-            st.write(r)
-            st.stop()
-
-        # =============================
-        # RESULTS
-        # =============================
+        # ==============================
+        # DISPLAY RESULTS
+        # ==============================
         st.markdown("---")
-        st.markdown("## Results")
+        st.header("Analysis Results")
 
-        c1, c2, c3, c4 = st.columns(4)
+        m1, m2, m3, m4 = st.columns(4)
+        
+        m1.metric("Credit Score", score)
+        m2.metric("Default Risk", f"{prob*100:.1f}%")
+        m3.metric("Risk Tier", risk_tier)
+        
+        # Color coding the decision
+        color = "green" if decision.upper() == "APPROVE" else "red"
+        m4.markdown(f"**Decision**\n### :{color}[{decision}]")
 
-        c1.markdown(f"""
-        <div class="card score-card">
-            <div class="metric-value">{score}</div>
-            <div class="metric-label">Credit Score</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        c2.markdown(f"""
-        <div class="card prob-card">
-            <div class="metric-value">{prob:.1%}</div>
-            <div class="metric-label">Default Risk</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        c3.markdown(f"""
-        <div class="card tier-card">
-            <div class="metric-value">{risk_tier}</div>
-            <div class="metric-label">Risk Tier</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        cls = "approve-card" if decision=="APPROVE" else "review-card" if decision=="REVIEW" else "reject-card"
-
-        c4.markdown(f"""
-        <div class="card {cls}">
-            <div class="metric-value">{decision}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # =============================
-        # SHAP / EXPLANATION
-        # =============================
-        st.markdown("### 🔍 Why this decision?")
+        # ==============================
+        # SHAP / DRIVERS
+        # ==============================
+        st.subheader("🔍 Key Risk Drivers")
+        st.info("Positive impacts (green) lower risk, negative impacts (red) increase it.")
 
         if drivers:
+            # Displaying drivers in a clean list
             for d in drivers:
-                color = "green" if d.get("impact", 0) < 0 else "red"
+                feature = d["feature"]
+                impact = d["impact"]
+                sentiment_color = "green" if impact < 0 else "red"
+                symbol = "▼" if impact < 0 else "▲"
+
                 st.markdown(
-                    f"<span style='color:{color}'><b>{d.get('feature')}</b> → {d.get('impact', 0):+.4f}</span>",
+                    f"<span style='color:{sentiment_color}'>{symbol} <b>{feature}</b>: {impact}</span>",
                     unsafe_allow_html=True
                 )
         else:
-            st.warning("No explanation available")
+            st.warning("No explanation drivers available for this prediction.")
 
+    except requests.exceptions.ConnectionError:
+        st.error("Connection Refused: Is your backend running on port 9000?")
     except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+        st.error(f"Unexpected Error: {e}")
