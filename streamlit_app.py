@@ -1,15 +1,15 @@
 import streamlit as st
 import requests
-import json
 
 st.set_page_config(page_title="Credit Risk Scorer", layout="wide")
 
 # =============================
-# 🎨 STYLES
+# 🎨 STYLES (UNCHANGED)
 # =============================
 st.markdown("""
 <style>
 .block-container { padding: 2rem 3rem; max-width: 1100px; }
+
 .header-box {
     background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
     border-radius: 16px;
@@ -17,6 +17,7 @@ st.markdown("""
     color: white;
     margin-bottom: 1.5rem;
 }
+
 .card {
     border-radius: 12px;
     padding: 1.5rem;
@@ -27,14 +28,17 @@ st.markdown("""
     flex-direction: column;
     justify-content: center;
 }
+
 .score-card   { background: linear-gradient(135deg, #667eea, #764ba2); }
 .prob-card    { background: linear-gradient(135deg, #f093fb, #f5576c); }
-.tier-card    { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+tier-card    { background: linear-gradient(135deg, #4facfe, #00f2fe); }
 .approve-card { background: linear-gradient(135deg, #43e97b, #38f9d7); }
 .review-card  { background: linear-gradient(135deg, #f7971e, #ffd200); }
 .reject-card  { background: linear-gradient(135deg, #fa709a, #fee140); }
+
 .metric-value { font-size: 2.2rem; font-weight: 800; }
 .metric-label { font-size: 0.95rem; font-weight: 600; }
+
 .sidebar-metric {
     background: #111827;
     padding: 10px;
@@ -114,58 +118,26 @@ if submit:
     }
 
     try:
-        response = requests.post("http://127.0.0.1:8000/score", json=payload)
+        r = requests.post("http://127.0.0.1:8000/score", json=payload).json()
 
-        # ✅ Safe JSON parsing
-        try:
-            r = response.json()
-        except:
-            st.error("❌ API did not return valid JSON")
-            st.stop()
+        # ✅ FIXED KEY MAPPING
+        score = r.get("credit_score")
+        prob = r.get("default_probability")
 
-        # 🔍 DEBUG (REMOVE LATER)
-        st.write("📦 API Response:", r)
+        decision_map = {
+            1: "APPROVE",
+            0: "REVIEW",
+            -1: "REJECT"
+        }
+        decision = decision_map.get(r.get("decision"), "UNKNOWN")
 
-        # =============================
-        # SAFE EXTRACTION
-        # =============================
-        score = None
-        prob = None
-        decision = None
+        risk_tier = r.get("risk_tier", "N/A")
 
-        if isinstance(r, dict):
-            score = r.get("score")
-            prob = r.get("probability_of_default")
-            decision = r.get("decision")
-            drivers = r.get("risk_drivers", [])
-            metrics = r.get("model_metrics", {})
-
-        elif isinstance(r, list) and len(r) > 0:
-            item = r[0]
-            score = item.get("score")
-            prob = item.get("probability_of_default")
-            decision = item.get("decision")
-            drivers = item.get("risk_drivers", [])
-            metrics = item.get("model_metrics", {})
-
-        else:
-            drivers = []
-            metrics = {}
-
-        # ❌ If keys missing
-        if score is None or prob is None or decision is None:
+        # ❌ safety check
+        if score is None or prob is None:
             st.error("⚠️ API response missing expected keys")
-            st.write("Returned data:", r)
+            st.write(r)
             st.stop()
-
-        # =============================
-        # SIDEBAR METRICS
-        # =============================
-        if metrics:
-            st.sidebar.markdown("## 📊 Model Health")
-            st.sidebar.metric("Test AUC", f"{metrics.get('test_auc', 0):.3f}")
-            st.sidebar.metric("Train AUC", f"{metrics.get('train_auc', 0):.3f}")
-            st.sidebar.metric("KS Score", f"{metrics.get('ks', 0):.3f}")
 
         # =============================
         # RESULTS UI
@@ -191,8 +163,8 @@ if submit:
 
         c3.markdown(f"""
         <div class="card tier-card">
-            <div class="metric-value">{'Low' if prob < 0.1 else 'High'}</div>
-            <div class="metric-label">Risk Level</div>
+            <div class="metric-value">{risk_tier}</div>
+            <div class="metric-label">Risk Tier</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -203,21 +175,6 @@ if submit:
             <div class="metric-value">{decision}</div>
         </div>
         """, unsafe_allow_html=True)
-
-        # =============================
-        # EXPLANATION
-        # =============================
-        st.markdown("### 🔍 Why this decision?")
-
-        if drivers:
-            for d in drivers:
-                color = "green" if d.get("impact", 0) < 0 else "red"
-                st.markdown(
-                    f"<span style='color:{color}'><b>{d.get('feature')}</b> → {d.get('impact', 0):+.4f}</span>",
-                    unsafe_allow_html=True
-                )
-        else:
-            st.warning("No explanation available")
 
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
